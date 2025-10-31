@@ -1,0 +1,50 @@
+version: "0.2.0"
+app:
+  title: "MedQueryFlow"
+  description: "Prompt-orchestrated medical QA pipeline demo"
+  default_model: "gpt-4o-mini"
+  sample_runs_path: "data/sample_runs.json"
+  ab_testing:
+    variants:
+      - name: "Baseline"
+        prompt_version: "v1"
+        index_version: "demo-2024-01"
+        safety_ruleset_version: "triage-0.1"
+      - name: "Rewrite++"
+        prompt_version: "v2"
+        index_version: "demo-2024-01"
+        safety_ruleset_version: "triage-0.2"
+routing:
+  medical_fact: external_corpus
+  diagnostic_request: external_corpus
+  care_advice: external_corpus
+  emotional_support: in_app_notes
+safety:
+  triage_levels: [info, caution, urgent]
+  urgent_keywords:
+    - chest pain
+    - shortness of breath
+    - stroke
+    - suicidal thoughts
+  escalation_prompt: "If the query indicates an urgent condition, provide emergency guidance and advise professional care immediately."
+paths:
+  prompts:
+    intent: "prompts/intent_prompt.txt"
+    rewrite: "prompts/rewrite_prompt.txt"
+    answer: "prompts/answer_prompt.txt"
+  normalization_table: "data/term_normalization.csv"
+  knowledge_base: "data/medical_abstracts/abstracts.json"
+logging:
+  export_dir: "data/exports"
+  export_filename_template: "run_{timestamp}.json"
+llm:
+  provider: "openai"
+  api_base: "https://api.openai.com/v1"
+  model_map:
+    intent: "gpt-4o-mini"
+    rewrite: "gpt-4o-mini"
+    answer: "gpt-4o-mini"
+  temperature:
+    intent: 0.0
+    rewrite: 0.3
+    answer: 0.1
