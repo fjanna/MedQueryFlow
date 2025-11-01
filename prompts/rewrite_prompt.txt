@@ -6,10 +6,10 @@ Output the rewrites as a JSON object with key `rewrites` pointing to a list of t
 
 Example:
 Q: Can PET/CT detect thyroid cancer?
-{"rewrites": [
+"rewrites": [
   "What is the diagnostic value of PET/CT imaging for thyroid cancer?",
   "How effective is PET/CT scanning at identifying thyroid malignancy?",
   "Does PET combined with CT reliably detect tumors in the thyroid gland?"
-]}
+]
 
 Q: {question}
