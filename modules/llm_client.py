@@ -119,7 +119,12 @@ class LLMClient:
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature,
         }
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response = requests.post(
+            url,
+            headers={**headers, "Content-Type": "application/json"},
+            json=payload,
+            timeout=30,
+        )
         response.raise_for_status()
         data = response.json()
         try:
@@ -170,7 +175,12 @@ class LLMClient:
         if self.provider == "anthropic":
             response = self._client.messages.create(
                 model=model,
-                messages=[{"role": "user", "content": request.prompt}],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [{"type": "text", "text": request.prompt}],
+                    }
+                ],
                 temperature=request.temperature,
                 max_tokens=4096,
             )
