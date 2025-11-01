@@ -5,5 +5,6 @@ Classify the user's question into exactly one of the following intents:
 - care_advice: lifestyle, prevention, or "can I do X" style guidance
 - emotional_support: emotional, experiential, or anecdotal questions best served with an empathetic tone
 - other: non-medical or out-of-domain
-Return JSON ONLY with keys `intent` and `confidence` (0-1 float). 
+Return JSON ONLY with keys `intent` and `confidence` (0-1 float). Example:
+{"intent": "medical_fact", "confidence": 0.92}
 Question: {question}

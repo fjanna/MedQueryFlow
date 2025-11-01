@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Dict
 
@@ -15,6 +16,71 @@ setup_logging()
 @st.cache_resource(show_spinner=False)
 def load_pipeline() -> MedQueryFlowPipeline:
     return MedQueryFlowPipeline(Path("configs/config.yaml"))
+
+
+def ensure_api_key() -> None:
+    """Prompt the user for an LLM provider API key before loading the app."""
+    st.session_state.setdefault("api_key_status", "pending")
+    st.session_state.setdefault("api_key_skipped", False)
+
+    provider_env_map = {
+        "OpenAI": "OPENAI_API_KEY",
+        "Anthropic": "ANTHROPIC_API_KEY",
+        "Gemini": "GEMINI_API_KEY",
+        "DeepSeek": "DEEPSEEK_API_KEY",
+    }
+    known_envs = list(provider_env_map.values())
+
+    if any(os.environ.get(var) for var in known_envs):
+        st.session_state["api_key_status"] = "set"
+        st.session_state["api_key_skipped"] = False
+        return
+
+    if st.session_state["api_key_status"] == "skipped":
+        return
+
+    st.session_state.setdefault("api_key_provider", "OpenAI")
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown(
+            "<div style='text-align: center;'>"
+            "<h2>🔐 Welcome to MedQueryFlow</h2>"
+            "<p>Please choose your LLM provider and enter an API key to unlock full features.</p>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        provider = st.selectbox(
+            "Select provider",
+            ["OpenAI", "Anthropic", "Gemini", "DeepSeek", "Other"],
+            key="api_key_provider",
+        )
+        api_key = st.text_input("API key", type="password", key="api_key_input")
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            save_clicked = st.button("💾 Save and Continue")
+        with btn_col2:
+            skip_clicked = st.button("⏭️ Skip (limited mode)")
+
+        if save_clicked:
+            if not api_key:
+                st.error("Please enter your API key before continuing.")
+            else:
+                env_name = provider_env_map.get(provider, "GENERIC_LLM_API_KEY")
+                os.environ[env_name] = api_key
+                st.session_state["api_key_status"] = "set"
+                st.session_state["api_key_skipped"] = False
+                st.success(
+                    f"{provider} API key saved for this session. Click the \"Rerun\" button to continue."
+                )
+                st.stop()
+
+        if skip_clicked:
+            st.session_state["api_key_status"] = "skipped"
+            st.session_state["api_key_skipped"] = True
+            st.experimental_rerun()
+
+    st.stop()
 
 
 def render_documents(docs):
@@ -146,6 +212,13 @@ def render_dashboard(pipeline: MedQueryFlowPipeline) -> None:
 
     st.table(summary_rows)
 
+
+ensure_api_key()
+
+if st.session_state.get("api_key_skipped"):
+    st.warning(
+        "⚠️ Running without an API key — LLM-based features will be disabled or use local fallback."
+    )
 
 st.title("MedQueryFlow")
 st.caption("Prompt-orchestrated medical retrieval and QA pipeline demo")
