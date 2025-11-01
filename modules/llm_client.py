@@ -37,6 +37,20 @@ class LLMClient:
         "deepseek": "deepseek-chat",
     }
 
+    _MODEL_ALIASES: Dict[str, Dict[str, str]] = {
+        "deepseek": {
+            "gpt-4o-mini": "deepseek-chat",
+            "gpt-4o": "deepseek-chat",
+            "gpt-4-turbo": "deepseek-chat",
+            "claude-3-sonnet-20240229": "deepseek-chat",
+            "gemini-1.5-pro": "deepseek-chat",
+        }
+    }
+
+    _SUPPORTED_MODELS: Dict[str, Tuple[str, ...]] = {
+        "deepseek": ("deepseek-chat", "deepseek-reasoner"),
+    }
+
     def __init__(self) -> None:
         provider, api_key = self._detect_provider()
         self.provider = provider
@@ -108,7 +122,29 @@ class LLMClient:
 
     def _resolve_model(self, request: LLMRequest) -> str:
         if request.model and request.model != "auto":
-            return request.model
+            requested = request.model
+            alias = self._MODEL_ALIASES.get(self.provider, {}).get(requested)
+            if alias:
+                logger.debug(
+                    "Using provider model alias",
+                    extra={
+                        "provider": self.provider,
+                        "requested": requested,
+                        "resolved": alias,
+                    },
+                )
+                return alias
+
+            supported = self._SUPPORTED_MODELS.get(self.provider)
+            if supported and requested not in supported:
+                logger.warning(
+                    "Model %s is not supported for provider %s; falling back to default %s",
+                    requested,
+                    self.provider,
+                    self._default_model,
+                )
+                return self._default_model
+            return requested
         return self._default_model
 
     def _fallback_deepseek(self, prompt: str, model: str, temperature: float) -> str:
@@ -125,7 +161,17 @@ class LLMClient:
             json=payload,
             timeout=30,
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            detail: str
+            try:
+                detail_payload = response.json()
+                detail = str(detail_payload)
+            except ValueError:
+                detail = response.text
+            logger.error("DeepSeek HTTP fallback failed: %s", detail)
+            raise RuntimeError(f"DeepSeek request failed with status {response.status_code}: {detail}") from exc
         data = response.json()
         try:
             return data["choices"][0]["message"]["content"]
